@@ -62,10 +62,21 @@ export default function MemberLayout() {
     return () => clearInterval(interval);
   }, []);
 
-  // Close mobile drawer on route change
+  // Close mobile drawer on route change & manage body scroll lock
   useEffect(() => {
     setIsMobileOpen(false);
   }, [location.pathname]);
+
+  useEffect(() => {
+    if (isMobileOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isMobileOpen]);
 
   const handleLogout = async () => {
     try {
