@@ -1,0 +1,442 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model SynapzSeat {
+  id             String        @id @default(cuid()) @db.VarChar(64)
+  seatNumber     String        @unique @map("seat_number") @db.VarChar(20)
+  zone           String        @map("zone") @db.VarChar(50)
+  status         String        @default("AVAILABLE") @map("status") @db.VarChar(30)
+  createdAt      DateTime?     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime?     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  assignedMember SynapzMember? @relation("SeatToMember")
+
+  @@map("synapz_seats")
+}
+
+model SynapzMember {
+  id                  String             @id @default(cuid()) @db.VarChar(64)
+  memberCode          String             @unique @map("member_code") @db.VarChar(30)
+  fullName            String             @map("full_name") @db.VarChar(150)
+  mobileNumber        String             @unique @map("mobile_number") @db.VarChar(15)
+  aadhaarEncrypted    String?            @map("aadhaar_encrypted")
+  address             String?            @map("address")
+  studyPurpose        String?            @map("study_purpose") @db.VarChar(150)
+  seatId              String?            @unique @map("seat_id") @db.VarChar(64)
+  allottedSeatNumber  String?            @map("allotted_seat_number") @db.VarChar(20)
+  membershipStartDate DateTime?          @default(now()) @map("membership_start_date") @db.Timestamptz(6)
+  membershipEndDate   DateTime?          @map("membership_end_date") @db.Timestamptz(6)
+  status              String             @default("ACTIVE") @map("status") @db.VarChar(30)
+  notes               String?            @map("notes")
+  createdAt           DateTime?          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime?          @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  passwordHash        String?            @map("password_hash") @db.VarChar(255)
+  attendances         SynapzAttendance[]
+  seat                SynapzSeat?        @relation("SeatToMember", fields: [seatId], references: [id], onUpdate: NoAction)
+
+  @@index([mobileNumber], map: "idx_synapz_member_mobile")
+  @@map("synapz_members")
+}
+
+model SynapzAttendance {
+  id                 String       @id @default(cuid()) @db.VarChar(64)
+  memberId           String       @map("member_id") @db.VarChar(64)
+  memberNameSnapshot String       @map("member_name_snapshot") @db.VarChar(150)
+  seatNumberSnapshot String?      @map("seat_number_snapshot") @db.VarChar(20)
+  attendanceDate     String       @map("attendance_date") @db.VarChar(10)
+  checkInAt          DateTime     @default(now()) @map("check_in_at") @db.Timestamptz(6)
+  method             String       @default("MEMBER_SELF_SERVICE") @map("method") @db.VarChar(30)
+  status             String       @default("CHECKED_IN") @map("status") @db.VarChar(30)
+  adminNotes         String?      @map("admin_notes")
+  createdAt          DateTime?    @default(now()) @map("created_at") @db.Timestamptz(6)
+  member             SynapzMember @relation(fields: [memberId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([memberId, attendanceDate], map: "unique_synapz_member_daily_attendance")
+  @@index([attendanceDate], map: "idx_synapz_attendance_date")
+  @@index([memberId], map: "idx_synapz_attendance_member")
+  @@map("synapz_attendance")
+}
+
+model SynapzAdminUser {
+  id           String    @id @default(cuid()) @db.VarChar(64)
+  username     String    @unique @map("username") @db.VarChar(50)
+  name         String    @map("name") @db.VarChar(100)
+  email        String?   @map("email") @db.VarChar(100)
+  passwordHash String    @map("password_hash")
+  role         String    @default("ADMIN") @map("role") @db.VarChar(30)
+  isActive     Boolean   @default(true) @map("is_active")
+  createdAt    DateTime? @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime? @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("synapz_admin_users")
+}
+
+model SynapzOtpSession {
+  id           String    @id @default(cuid()) @db.VarChar(64)
+  mobileNumber String    @map("mobile_number") @db.VarChar(15)
+  otpHash      String    @map("otp_hash")
+  expiresAt    DateTime  @map("expires_at") @db.Timestamptz(6)
+  attempts     Int       @default(0) @map("attempts")
+  isVerified   Boolean   @default(false) @map("is_verified")
+  createdAt    DateTime? @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([mobileNumber, createdAt], map: "idx_synapz_otp_mobile")
+  @@map("synapz_otp_sessions")
+}
+
+model SynapzAuditLog {
+  id         String    @id @default(cuid()) @db.VarChar(64)
+  actorId    String    @map("actor_id") @db.VarChar(64)
+  actorRole  String    @map("actor_role") @db.VarChar(30)
+  action     String    @map("action") @db.VarChar(80)
+  entityType String    @map("entity_type") @db.VarChar(50)
+  entityId   String    @map("entity_id") @db.VarChar(64)
+  metadata   String?   @map("metadata")
+  createdAt  DateTime? @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@map("synapz_audit_logs")
+}
+
+model AuditLog {
+  id        String   @id @db.Uuid
+  kitchenId String   @db.Uuid
+  actorId   String
+  action    String
+  entityId  String
+  createdAt DateTime @default(now())
+  Kitchen   Kitchen  @relation(fields: [kitchenId], references: [id])
+
+  @@index([kitchenId, createdAt])
+}
+
+model Customer {
+  id        String   @id @db.Uuid
+  kitchenId String   @db.Uuid
+  name      String
+  phone     String
+  createdAt DateTime @default(now())
+  Kitchen   Kitchen  @relation(fields: [kitchenId], references: [id])
+  Order     Order[]
+
+  @@unique([kitchenId, phone])
+}
+
+model Entity {
+  id        String    @id @db.Uuid
+  kitchenId String    @db.Uuid
+  kind      String
+  name      String
+  data      Json
+  active    Boolean   @default(true)
+  sortOrder Int       @default(0)
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime
+  Kitchen   Kitchen   @relation(fields: [kitchenId], references: [id])
+
+  @@index([kitchenId, kind, deletedAt, active, sortOrder])
+}
+
+model Kitchen {
+  id        String     @id @db.Uuid
+  slug      String     @unique
+  name      String
+  settings  Json
+  createdAt DateTime   @default(now())
+  updatedAt DateTime
+  AuditLog  AuditLog[]
+  Customer  Customer[]
+  Entity    Entity[]
+  Order     Order[]
+  User      User[]
+}
+
+model Order {
+  id                 String               @id @db.Uuid
+  kitchenId          String               @db.Uuid
+  customerId         String               @db.Uuid
+  idempotencyKey     String
+  trackingHash       String
+  status             String               @default("PENDING")
+  subtotal           Int
+  deliveryFee        Int                  @default(0)
+  total              Int
+  address            String
+  note               String?
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime
+  Customer           Customer             @relation(fields: [customerId], references: [id])
+  Kitchen            Kitchen              @relation(fields: [kitchenId], references: [id])
+  OrderItem          OrderItem[]
+  OrderStatusHistory OrderStatusHistory[]
+
+  @@unique([kitchenId, idempotencyKey])
+  @@index([kitchenId, status, createdAt])
+}
+
+model OrderItem {
+  id        String @id @db.Uuid
+  orderId   String @db.Uuid
+  itemId    String @db.Uuid
+  name      String
+  quantity  Int
+  unitPrice Int
+  total     Int
+  Order     Order  @relation(fields: [orderId], references: [id])
+}
+
+model OrderStatusHistory {
+  id        String   @id @db.Uuid
+  orderId   String   @db.Uuid
+  status    String
+  actorId   String?
+  createdAt DateTime @default(now())
+  Order     Order    @relation(fields: [orderId], references: [id])
+}
+
+model Session {
+  id        String   @id @db.Uuid
+  tokenHash String   @unique
+  userId    String   @db.Uuid
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  User      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model User {
+  id           String    @id @db.Uuid
+  kitchenId    String    @db.Uuid
+  email        String    @unique
+  passwordHash String
+  role         String    @default("STAFF")
+  active       Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime
+  Session      Session[]
+  Kitchen      Kitchen   @relation(fields: [kitchenId], references: [id])
+}
+
+model addon_group_master {
+  id                Int                 @id @default(autoincrement())
+  group_name        String              @db.VarChar(120)
+  description       String?
+  created_at        DateTime            @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime            @default(now()) @db.Timestamptz(6)
+  is_deleted        Int                 @default(0) @db.SmallInt
+  is_active         Int                 @default(1) @db.SmallInt
+  addon_item_master addon_item_master[]
+}
+
+model addon_item_master {
+  id                 Int                @id @default(autoincrement())
+  group_id           Int
+  addon_item_name    String             @db.VarChar(255)
+  price              Decimal            @default(0.00) @db.Decimal(10, 2)
+  description        String?
+  created_at         DateTime           @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime           @default(now()) @db.Timestamptz(6)
+  is_deleted         Int                @default(0) @db.SmallInt
+  is_active          Int                @default(1) @db.SmallInt
+  addon_group_master addon_group_master @relation(fields: [group_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model admin {
+  id                                                       Int                @id @default(autoincrement())
+  name                                                     String             @db.VarChar(255)
+  email                                                    String             @unique @db.VarChar(255)
+  phone                                                    String?            @db.VarChar(20)
+  role                                                     String             @default("ADMIN") @db.VarChar(50)
+  profile_image                                            String?            @db.VarChar(255)
+  password_hash                                            String
+  created_by                                               Int?
+  current_session_id                                       String?
+  session_expires_at                                       DateTime?          @db.Timestamptz(6)
+  refresh_token_hash                                       String?
+  refresh_token_expires_at                                 DateTime?          @db.Timestamptz(6)
+  reset_password_token_hash                                String?
+  reset_password_expires_at                                DateTime?          @db.Timestamptz(6)
+  last_login_at                                            DateTime?          @db.Timestamptz(6)
+  is_active                                                Int                @default(1) @db.SmallInt
+  is_deleted                                               Int                @default(0) @db.SmallInt
+  created_at                                               DateTime           @default(now()) @db.Timestamptz(6)
+  updated_at                                               DateTime           @default(now()) @db.Timestamptz(6)
+  admin                                                    admin?             @relation("adminToadmin", fields: [created_by], references: [id], onUpdate: NoAction)
+  other_admin                                              admin[]            @relation("adminToadmin")
+  admin_audit_logs_admin_audit_logs_actor_admin_idToadmin  admin_audit_logs[] @relation("admin_audit_logs_actor_admin_idToadmin")
+  admin_audit_logs_admin_audit_logs_target_admin_idToadmin admin_audit_logs[] @relation("admin_audit_logs_target_admin_idToadmin")
+  admin_sessions                                           admin_sessions[]
+}
+
+model admin_audit_logs {
+  id                                            Int      @id @default(autoincrement())
+  actor_admin_id                                Int?
+  target_admin_id                               Int?
+  action_key                                    String   @db.VarChar(100)
+  details                                       Json     @default("{}")
+  created_at                                    DateTime @default(now()) @db.Timestamptz(6)
+  admin_admin_audit_logs_actor_admin_idToadmin  admin?   @relation("admin_audit_logs_actor_admin_idToadmin", fields: [actor_admin_id], references: [id], onUpdate: NoAction)
+  admin_admin_audit_logs_target_admin_idToadmin admin?   @relation("admin_audit_logs_target_admin_idToadmin", fields: [target_admin_id], references: [id], onUpdate: NoAction)
+}
+
+model admin_sessions {
+  id                       Int      @id @default(autoincrement())
+  admin_id                 Int
+  session_id               String   @unique
+  refresh_token_hash       String
+  session_expires_at       DateTime @db.Timestamptz(6)
+  refresh_token_expires_at DateTime @db.Timestamptz(6)
+  created_at               DateTime @default(now()) @db.Timestamptz(6)
+  updated_at               DateTime @default(now()) @db.Timestamptz(6)
+  admin                    admin    @relation(fields: [admin_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model admin_users {
+  id            Int       @id @default(autoincrement())
+  username      String    @unique @db.VarChar(50)
+  password_hash String
+  created_at    DateTime? @default(now()) @db.Timestamp(6)
+}
+
+model analytics_events {
+  id          Int       @id @default(autoincrement())
+  session_id  String    @db.VarChar(100)
+  event_type  String    @db.VarChar(80)
+  event_label String?   @db.VarChar(150)
+  metadata    Json?
+  created_at  DateTime? @default(now()) @db.Timestamp(6)
+}
+
+model enquiries {
+  id             Int       @id @default(autoincrement())
+  student_name   String    @db.VarChar(100)
+  parent_name    String?   @db.VarChar(100)
+  class_year     String    @db.VarChar(80)
+  school_college String?   @db.VarChar(150)
+  interested_in  String    @db.VarChar(150)
+  experience     String    @db.VarChar(80)
+  preferred_mode String    @db.VarChar(80)
+  phone          String    @db.VarChar(20)
+  email          String?   @db.VarChar(100)
+  status         String?   @default("NEW") @db.VarChar(30)
+  notes          String?
+  ip_address     String?   @db.VarChar(45)
+  created_at     DateTime? @default(now()) @db.Timestamp(6)
+}
+
+model page_views {
+  id         Int       @id @default(autoincrement())
+  session_id String    @db.VarChar(100)
+  page_url   String?   @db.VarChar(255)
+  referrer   String?   @db.VarChar(255)
+  user_agent String?
+  ip_address String?   @db.VarChar(45)
+  created_at DateTime? @default(now()) @db.Timestamp(6)
+}
+
+model print_connectors {
+  id              Int       @id @default(autoincrement())
+  connector_id    String    @unique @db.VarChar(100)
+  device_name     String    @db.VarChar(150)
+  platform        String    @default("android") @db.VarChar(50)
+  agent_type      String    @default("android_companion") @db.VarChar(50)
+  auth_token_hash String    @db.VarChar(255)
+  is_active       Boolean?  @default(true)
+  created_at      DateTime? @default(now()) @db.Timestamptz(6)
+  last_seen_at    DateTime? @db.Timestamptz(6)
+  revoked_at      DateTime? @db.Timestamptz(6)
+
+  @@index([connector_id, is_active], map: "idx_print_connectors_active")
+}
+
+model print_jobs {
+  id              String    @id @db.VarChar(64)
+  order_id        BigInt?
+  order_number    String?   @db.VarChar(100)
+  restaurant_id   Int?      @default(1)
+  connector_id    String?   @db.VarChar(100)
+  job_type        String    @default("automatic_receipt") @db.VarChar(50)
+  idempotency_key String?   @unique @db.VarChar(150)
+  printer_name    String?   @db.VarChar(150)
+  connection_type String?   @default("network") @db.VarChar(50)
+  payload_base64  String
+  copies          Int?      @default(1)
+  status          String    @default("QUEUED") @db.VarChar(30)
+  attempt_count   Int?      @default(0)
+  max_attempts    Int?      @default(3)
+  created_at      DateTime? @default(now()) @db.Timestamptz(6)
+  dispatched_at   DateTime? @db.Timestamptz(6)
+  acknowledged_at DateTime? @db.Timestamptz(6)
+  last_error      String?
+  next_retry_at   DateTime? @db.Timestamptz(6)
+  correlation_id  String?   @db.VarChar(100)
+
+  @@index([created_at(sort: Desc)], map: "idx_print_jobs_created_at")
+  @@index([idempotency_key], map: "idx_print_jobs_idempotency")
+  @@index([order_id], map: "idx_print_jobs_order_id")
+  @@index([status, next_retry_at], map: "idx_print_jobs_status_retry")
+}
+
+model printer_settings {
+  id                           Int       @id
+  printer_name                 String    @default("AUTO") @db.VarChar(255)
+  auto_print_on_accept         Boolean?  @default(true)
+  auto_cut_receipt             Boolean?  @default(true)
+  copies                       Int?      @default(1)
+  header_title                 String?   @default("BAGEL MASTER") @db.VarChar(255)
+  sub_title                    String?   @default("Fresh Bagels & Kitchen Deli") @db.VarChar(255)
+  store_address                String?   @default("") @db.VarChar(255)
+  store_phone                  String?   @default("") @db.VarChar(100)
+  tax_id_number                String?   @default("") @db.VarChar(100)
+  footer_note                  String?   @default("THANK YOU FOR YOUR ORDER!") @db.VarChar(255)
+  footer_sub_note              String?   @default("Bagel Master Kitchen") @db.VarChar(255)
+  show_customer_info           Boolean?  @default(true)
+  show_order_notes             Boolean?  @default(true)
+  show_item_addons             Boolean?  @default(true)
+  show_tax_details             Boolean?  @default(true)
+  show_payment_details         Boolean?  @default(true)
+  paper_width                  String?   @default("80mm") @db.VarChar(20)
+  currency_symbol              String?   @default("£") @db.VarChar(20)
+  created_at                   DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at                   DateTime? @default(now()) @db.Timestamptz(6)
+  agent_token                  String?   @default("bm_print_agent_sec_7f9a2b1c4e") @db.VarChar(255)
+  registered_agent_name        String?   @default("") @db.VarChar(255)
+  registered_printers          String?   @default("[]")
+  agent_last_seen_at           DateTime? @db.Timestamptz(6)
+  show_logo                    Boolean?  @default(true)
+  logo_url                     String?   @default("")
+  show_store_address           Boolean?  @default(true)
+  show_review_qr               Boolean?  @default(true)
+  review_qr_url                String?   @default("https://bagelmaster.co.uk/review")
+  review_qr_title              String?   @default("Scan to Leave us a Review!") @db.VarChar(255)
+  review_qr_image_url          String?   @default("")
+  connection_type              String?   @default("agent") @db.VarChar(50)
+  printer_ip                   String?   @default("192.168.1.100") @db.VarChar(100)
+  printer_port                 Int?      @default(9100)
+  printer_protocol             String?   @default("raw_tcp") @db.VarChar(50)
+  bluetooth_mac                String?   @default("") @db.VarChar(100)
+  printer_model                String?   @default("POSiFLOW KP307-UEWB") @db.VarChar(100)
+  device_status                String?   @default("ready") @db.VarChar(50)
+  last_connection_test_at      DateTime? @db.Timestamptz(6)
+  last_connection_test_status  String?   @default("untested") @db.VarChar(50)
+  last_connection_test_message String?   @default("")
+  last_error_message           String?   @default("")
+  print_security_mode          String?   @default("token") @db.VarChar(50)
+  allowed_ip_ranges            String?   @default("")
+  max_queue_retries            Int?      @default(3)
+}
+
+model user_sessions {
+  session_id         String    @id @db.VarChar(100)
+  ip_address         String?   @db.VarChar(45)
+  user_agent         String?
+  first_seen         DateTime? @default(now()) @db.Timestamp(6)
+  last_active        DateTime? @default(now()) @db.Timestamp(6)
+  time_spent_seconds Int?      @default(0)
+  click_count        Int?      @default(0)
+  page_views         Int?      @default(1)
+}
