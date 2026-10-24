@@ -8,6 +8,10 @@ export default function AdminDashboardPage() {
   const [metrics, setMetrics] = useState(null);
   const [todayAttendance, setTodayAttendance] = useState([]);
 
+
+
+
+
   useEffect(() => {
     let isMounted = true;
     async function fetchDashboard() {
