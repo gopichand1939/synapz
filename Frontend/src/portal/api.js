@@ -2,7 +2,11 @@
  * API Client for SYNAPZ STUDY ZONE Member & Admin Portals
  */
 
-const BASE_URL = '';
+// Local Development URL:
+// const BASE_URL = '';
+
+// Live Render Production Backend URL:
+const BASE_URL = 'https://synapz-dszg.onrender.com';
 
 async function request(endpoint, options = {}) {
   const url = `${BASE_URL}${endpoint}`;
@@ -139,7 +143,7 @@ export const api = {
 
   exportAttendanceUrl: (params = {}) => {
     const query = new URLSearchParams(params).toString();
-    return `/api/admin/attendance/export?${query}`;
+    return `${BASE_URL}/api/admin/attendance/export?${query}`;
   },
 
   listSeats: () => request('/api/admin/seats'),
